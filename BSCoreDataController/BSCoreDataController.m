@@ -387,7 +387,7 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
     if (ubName) {
         // on iCloud, use the key-value store to mark whether this store has been pre-populated
         NSUbiquitousKeyValueStore* ubStore = [NSUbiquitousKeyValueStore defaultStore];
-        ubSetupKey = [NSString stringWithFormat:@"storeSetupDone/%@/%@/%@",[self class],storeOptions[NSPersistentStoreUbiquitousContainerIdentifierKey],ubName];
+        ubSetupKey = [NSString stringWithFormat:@"storeSetupDone/%@/%@",[self class],ubName];
         BOOL setupDone = [ubStore boolForKey:ubSetupKey];
         if (!setupDone) {
             shouldSetupInitialData = YES;

@@ -70,11 +70,6 @@
 
 - (void) handleError:(NSError *)error userInteractionPermitted:(BOOL)userInteractionPermitted;
 
-/**
- Override to setup the initial data in the context; executed within that context's block.
- */
--(void) setupInitialDataInManagedObjectContext:(NSManagedObjectContext*) objectContext;
-
 @end
 
 extern NSString* const BSCoreDataControllerStoresWillChangeNotification;

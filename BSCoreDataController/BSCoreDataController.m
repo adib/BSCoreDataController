@@ -33,9 +33,6 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
     dispatch_queue_t _backgroundQueue;
 }
 
--(void) setupInitialDataInManagedObjectContext:(NSManagedObjectContext*) objectContext { }
-
-
 +(NSString*) filePackageName { return @"Default.data"; }
 
 -(id) initWithFilePackageURL:(NSURL *)fileURL
@@ -98,8 +95,8 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
 
 -(void) persistentStoreCoordinatorStoresWillChange:(NSNotification*) notification
 {
+    NSManagedObjectContext* moc = [self managedObjectContext];
     void (^saveThenReset)(BOOL)  = ^(BOOL reset) {
-        NSManagedObjectContext* moc = [self managedObjectContext];
         [moc performBlockAndWait:^{
             NSError* mocError = nil;
             if ([moc hasChanges]) {
@@ -131,8 +128,10 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
     // First save the contexts first to convert any temporary ID into a permanent ID.
     saveThenReset(NO);
     
-    // Notify everyone else first to commit their changes and do whatever is required before we reset the contexts.
-    [[NSNotificationCenter defaultCenter] postNotificationName:BSCoreDataControllerStoresWillChangeNotification object:self userInfo:notification.userInfo];
+    [moc performBlockAndWait:^{
+        // Notify everyone else first to commit their changes and do whatever is required before we reset the contexts.
+        [[NSNotificationCenter defaultCenter] postNotificationName:BSCoreDataControllerStoresWillChangeNotification object:self userInfo:notification.userInfo];
+    }];
     
     // Then save it again in case the above made any changes to the contexts. This time we reset them afterwards.
     saveThenReset(YES);
@@ -141,8 +140,10 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
 
 -(void) persistentStoreCoordinatorStoresDidChange:(NSNotification*) notification
 {
-    // parallel notification to BSCoreDataControllerStoresWillChangeNotification
-    [[NSNotificationCenter defaultCenter] postNotificationName:BSCoreDataControllerStoresDidChangeNotification object:self userInfo:notification.userInfo];
+    NSDictionary* userInfo = notification.userInfo;
+    [[NSOperationQueue mainQueue] addOperationWithBlock:^{
+        [[NSNotificationCenter defaultCenter] postNotificationName:BSCoreDataControllerStoresDidChangeNotification object:self userInfo:userInfo];
+    }];
 }
 
 
@@ -157,7 +158,13 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
         }];
     }
 #else
-    [self autosaveWithCompletionHandler:nil];
+    NSProcessInfo* processInfo = [NSProcessInfo processInfo];
+    id<NSObject> activityToken = [processInfo beginActivityWithOptions:NSActivityBackground reason:@"Autosave"];
+    [self autosaveWithCompletionHandler:^(BOOL success) {
+        if (activityToken) {
+            [processInfo endActivity:activityToken];
+        }
+    }];
 #endif
 }
 
@@ -181,7 +188,7 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
 {
     NSDictionary* storeOptions = self.persistentStoreOptions;
     // ensure context is created
-    [self managedObjectContext];
+    NSManagedObjectContext* managedObjectContext = [self managedObjectContext];
     dispatch_async([self backgroundQueue], ^{
         BOOL __block success = YES;
         void(^returnSuccess)() = ^{
@@ -191,8 +198,19 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
                 });
             }
         };
-        if (_persistentStore) {
-            returnSuccess();
+        
+        BOOL __block shouldExit = NO;
+        NSManagedObjectContext* parentContext = managedObjectContext.parentContext;
+        [parentContext performBlockAndWait:^{
+            if (_persistentStore) {
+                // alrady open
+                returnSuccess();
+                shouldExit = YES;
+            }
+        }];
+        
+        if (shouldExit) {
+            return;
         }
         NSFileCoordinator* fc = [[NSFileCoordinator alloc] initWithFilePresenter:nil];
         NSError* fileCoordinatorError = nil;
@@ -290,17 +308,20 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
     dispatch_async([self backgroundQueue], ^{
         [self autosaveWithCompletionHandler:^(BOOL autosaveSuccess) {
             if(autosaveSuccess) {
-                NSPersistentStoreCoordinator* coordinator = [self.managedObjectContext persistentStoreCoordinator];
-                if (_persistentStore) {
-                    NSError* removeError  = nil;
-                    [coordinator removePersistentStore:_persistentStore error:&removeError];
-                    if (removeError) {
-                        [self handleError:removeError userInteractionPermitted:YES];
-                        success = NO;
-                    } else {
-                        _persistentStore = nil;
+                NSManagedObjectContext* parentContext = self.managedObjectContext.parentContext;
+                [parentContext performBlockAndWait:^{
+                    NSPersistentStoreCoordinator* coordinator = [parentContext persistentStoreCoordinator];
+                    if (_persistentStore) {
+                        NSError* removeError  = nil;
+                        [coordinator removePersistentStore:_persistentStore error:&removeError];
+                        if (removeError) {
+                            [self handleError:removeError userInteractionPermitted:YES];
+                            success = NO;
+                        } else {
+                            _persistentStore = nil;
+                        }
                     }
-                }
+                }];
             } else {
                 success = NO;
             }
@@ -381,46 +402,21 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
                                      storeOptions:(NSDictionary *)storeOptions
                                             error:(NSError **)error
 {
-    BOOL shouldSetupInitialData = NO;
-    NSString* ubSetupKey = nil;
-    NSString* ubName = storeOptions[NSPersistentStoreUbiquitousContentNameKey];
-    if (ubName) {
-        // on iCloud, use the key-value store to mark whether this store has been pre-populated
-        NSUbiquitousKeyValueStore* ubStore = [NSUbiquitousKeyValueStore defaultStore];
-        ubSetupKey = [NSString stringWithFormat:@"storeSetupDone/%@/%@",[self class],ubName];
-        BOOL setupDone = [ubStore boolForKey:ubSetupKey];
-        if (!setupDone) {
-            shouldSetupInitialData = YES;
-        }
-    } else {
-        // not on iCloud, detect whether the file exists or not. If it doesn't exists yet, then setup afterwards.
-        NSError* urlCheckError = nil;
-        BOOL fileExists = [storeURL checkResourceIsReachableAndReturnError:&urlCheckError];
-        if (!urlCheckError) {
-            shouldSetupInitialData = !fileExists;
-        }
-    }
-
     NSManagedObjectContext* objectContext = [self managedObjectContext];
     NSPersistentStoreCoordinator *storeCoordinator = [objectContext persistentStoreCoordinator];
-    _persistentStore = [storeCoordinator addPersistentStoreWithType:[self persistentStoreTypeForFileType:fileType]
+    NSPersistentStore* persistentStore = [storeCoordinator addPersistentStoreWithType:[self persistentStoreTypeForFileType:fileType]
                                                       configuration:configuration
                                                                 URL:storeURL
                                                             options:storeOptions
                                                               error:error];
-
-    if (shouldSetupInitialData && _persistentStore) {
-        NSManagedObjectContext* parentContext = [objectContext parentContext];
-        [parentContext performBlock:^{
-            [self setupInitialDataInManagedObjectContext:parentContext];
-            if (ubSetupKey) {
-                // on iCloud, mark setup done on the key-value pair.
-                NSUbiquitousKeyValueStore* ubStore = [NSUbiquitousKeyValueStore defaultStore];
-                [ubStore setBool:YES forKey:ubSetupKey];
-            }
+    if (persistentStore) {
+        NSManagedObjectContext* parentContext = objectContext.parentContext;
+        [parentContext performBlockAndWait:^{
+            _persistentStore = persistentStore;
         }];
     }
-    return (_persistentStore != nil);
+
+    return (persistentStore != nil);
 }
 
 

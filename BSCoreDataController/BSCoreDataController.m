@@ -60,7 +60,7 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
 {
     NSString *executableName = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleExecutable"];
     NSFileManager* fm = [NSFileManager defaultManager];
-    NSURL* appSupportURL = [[fm URLsForDirectory:NSApplicationDirectory inDomains:NSUserDomainMask] firstObject];
+    NSURL* appSupportURL = [[fm URLsForDirectory:NSApplicationSupportDirectory inDomains:NSUserDomainMask] firstObject];
     NSURL* filePackageURL = [[appSupportURL URLByAppendingPathComponent:executableName] URLByAppendingPathComponent:[[self class] filePackageName]];
     return [self initWithFilePackageURL:filePackageURL];
 }

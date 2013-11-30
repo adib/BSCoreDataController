@@ -48,6 +48,8 @@
 
 @property (nonatomic, copy) NSDictionary *persistentStoreOptions;
 
+@property (nonatomic,copy) NSString* fileType;
+
 /** 
  Override to return YES if you want to sync with iCloud
  */

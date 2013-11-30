@@ -189,6 +189,7 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
     NSDictionary* storeOptions = self.persistentStoreOptions;
     // ensure context is created
     NSManagedObjectContext* managedObjectContext = [self managedObjectContext];
+    NSString* fileType = self.fileType;
     dispatch_async([self backgroundQueue], ^{
         BOOL __block success = YES;
         void(^returnSuccess)() = ^{
@@ -220,7 +221,6 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
             
             NSURL* storeContentURL  = [newURL URLByAppendingPathComponent:[[self class] storeContentName]];
             if([fm createDirectoryAtURL:storeContentURL withIntermediateDirectories:YES attributes:nil error:&fmError]) {
-                [newURL setResourceValue:@YES forKey:NSURLIsPackageKey error:nil];
                 NSURL* persistentStoreURL = [storeContentURL URLByAppendingPathComponent:[[self class] persistentStoreName]];
                 NSError* configureError = nil;
                 if(![self configurePersistentStoreCoordinatorForURL:persistentStoreURL ofType:nil modelConfiguration:nil storeOptions:storeOptions error:&configureError]) {
@@ -229,6 +229,11 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
                     }
                     success = NO;
                     return;
+                } else {
+                    [newURL setResourceValue:@YES forKey:NSURLIsPackageKey error:nil];
+                    if (fileType) {
+                        [newURL setResourceValue:fileType forKey:NSURLTypeIdentifierKey error:nil];
+                    }
                 }
 
             } else {

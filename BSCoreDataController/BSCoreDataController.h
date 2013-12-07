@@ -27,7 +27,7 @@
  
  @author Sasmito Adibowo
  */
-@interface BSCoreDataController : NSObject
+@interface BSCoreDataController : NSObject<NSCoding>
 
 /**
  Designated initializer. Will create the container folders if necessary.
@@ -69,6 +69,8 @@
 - (void) openWithCompletionHandler:(void (^)(BOOL success))completionHandler;
 
 - (void) closeWithCompletionHandler:(void (^)(BOOL success))completionHandler;
+
+- (void)autosaveWithCompletionHandler:(void (^)(BOOL success))completionHandler;
 
 - (void) handleError:(NSError *)error userInteractionPermitted:(BOOL)userInteractionPermitted;
 

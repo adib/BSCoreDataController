@@ -33,6 +33,21 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
     dispatch_queue_t _backgroundQueue;
 }
 
+-(void) coreDataController_commonInit
+{
+    NSNotificationCenter* nc = [NSNotificationCenter defaultCenter];
+#if TARGET_OS_IPHONE
+    UIApplication* app = [UIApplication sharedApplication];
+    [nc addObserver:self selector:@selector(applicationDidDeactivate:) name:UIApplicationDidEnterBackgroundNotification object:app];
+    [nc addObserver:self selector:@selector(applicationDidDeactivate:) name:UIApplicationWillResignActiveNotification object:app];
+    
+#else
+    NSApplication* app = [NSApplication sharedApplication];
+    [nc addObserver:self selector:@selector(applicationDidDeactivate:) name:NSApplicationDidResignActiveNotification object:app];
+    [nc addObserver:self selector:@selector(applicationDidDeactivate:) name:NSApplicationDidHideNotification object:app];
+#endif // TARGET_OS_IPHONE
+}
+
 +(NSString*) filePackageName { return @"Default.data"; }
 
 -(id) initWithFilePackageURL:(NSURL *)fileURL
@@ -40,17 +55,7 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
     if (self = [super init]) {
         _filePackageURL = fileURL;
         
-        NSNotificationCenter* nc = [NSNotificationCenter defaultCenter];
-#if TARGET_OS_IPHONE
-        UIApplication* app = [UIApplication sharedApplication];
-        [nc addObserver:self selector:@selector(applicationDidDeactivate:) name:UIApplicationDidEnterBackgroundNotification object:app];
-        [nc addObserver:self selector:@selector(applicationDidDeactivate:) name:UIApplicationWillResignActiveNotification object:app];
-        
-#else
-        NSApplication* app = [NSApplication sharedApplication];
-        [nc addObserver:self selector:@selector(applicationDidDeactivate:) name:NSApplicationDidResignActiveNotification object:app];
-        [nc addObserver:self selector:@selector(applicationDidDeactivate:) name:NSApplicationDidHideNotification object:app];        
-#endif // TARGET_OS_IPHONE
+        [self coreDataController_commonInit];
     }
     return self;
 }
@@ -79,6 +84,24 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
         _backgroundQueue = dispatch_queue_create("com.basilsalad.CoreDataController",DISPATCH_QUEUE_SERIAL);
     }
     return _backgroundQueue;
+}
+
+#pragma mark NSCoding
+
+-(id)initWithCoder:(NSCoder *)aDecoder
+{
+    if (self = [super init]) {
+        [self coreDataController_commonInit];
+        _filePackageURL = [aDecoder decodeObjectOfClass:[NSURL class] forKey:@"filePackageURL"];
+    }
+    return self;
+}
+
+-(void)encodeWithCoder:(NSCoder *)aCoder
+{
+    if (_filePackageURL) {
+        [aCoder encodeObject:_filePackageURL forKey:@"filePackageURL"];
+    }
 }
 
 #pragma mark Notification Handlers

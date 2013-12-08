@@ -281,12 +281,18 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
 - (void)autosaveWithCompletionHandler:(void (^)(BOOL success))completionHandler
 {
     dispatch_queue_t callbackQueue = [NSThread isMainThread] ? dispatch_get_main_queue() : [self backgroundQueue];
+    NSProcessInfo* processInfo = [NSProcessInfo processInfo];
+    id<NSObject> activityToken = [processInfo beginActivityWithOptions:NSActivityBackground reason:@"Autosave"];
+    
     BOOL __block success = YES;
     void(^returnSuccess)() = ^{
         if (completionHandler) {
             dispatch_async(callbackQueue, ^{
                 completionHandler(success);
             });
+        }
+        if (activityToken) {
+            [processInfo endActivity:activityToken];
         }
     };
 

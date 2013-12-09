@@ -211,7 +211,6 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
 {
     NSDictionary* storeOptions = self.persistentStoreOptions;
     // ensure context is created
-    NSManagedObjectContext* managedObjectContext = [self managedObjectContext];
     NSString* fileType = self.fileType;
     dispatch_async([self backgroundQueue], ^{
         BOOL __block success = YES;
@@ -223,19 +222,12 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
             }
         };
         
-        BOOL __block shouldExit = NO;
-        NSManagedObjectContext* parentContext = managedObjectContext.parentContext;
-        [parentContext performBlockAndWait:^{
-            if (_persistentStore) {
-                // alrady open
-                returnSuccess();
-                shouldExit = YES;
-            }
-        }];
-        
-        if (shouldExit) {
+        if (_persistentStore) {
+            // already open
+            returnSuccess();
             return;
         }
+        
         NSFileCoordinator* fc = [[NSFileCoordinator alloc] initWithFilePresenter:nil];
         NSError* fileCoordinatorError = nil;
         [fc coordinateWritingItemAtURL:_filePackageURL options:0 error:&fileCoordinatorError byAccessor:^(NSURL *newURL) {
@@ -338,14 +330,13 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
             });
         }
     };
-
-    dispatch_async([self backgroundQueue], ^{
+    dispatch_queue_t backgroundQueue = [self backgroundQueue];
+    dispatch_async(backgroundQueue, ^{
         [self autosaveWithCompletionHandler:^(BOOL autosaveSuccess) {
             if(autosaveSuccess) {
-                NSManagedObjectContext* parentContext = self.managedObjectContext.parentContext;
-                [parentContext performBlockAndWait:^{
-                    NSPersistentStoreCoordinator* coordinator = [parentContext persistentStoreCoordinator];
+                dispatch_async(backgroundQueue, ^{
                     if (_persistentStore) {
+                        NSPersistentStoreCoordinator* coordinator = [_persistentStore persistentStoreCoordinator];
                         NSError* removeError  = nil;
                         [coordinator removePersistentStore:_persistentStore error:&removeError];
                         if (removeError) {
@@ -354,8 +345,9 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
                         } else {
                             _persistentStore = nil;
                         }
+                        returnSuccess();
                     }
-                }];
+                });
             } else {
                 success = NO;
             }
@@ -444,10 +436,7 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
                                                             options:storeOptions
                                                               error:error];
     if (persistentStore) {
-        NSManagedObjectContext* parentContext = objectContext.parentContext;
-        [parentContext performBlockAndWait:^{
-            _persistentStore = persistentStore;
-        }];
+        _persistentStore = persistentStore;
     }
 
     return (persistentStore != nil);

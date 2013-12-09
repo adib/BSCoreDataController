@@ -238,7 +238,7 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
         }
         NSFileCoordinator* fc = [[NSFileCoordinator alloc] initWithFilePresenter:nil];
         NSError* fileCoordinatorError = nil;
-        [fc coordinateWritingItemAtURL:_filePackageURL options:NSFileCoordinatorWritingForMerging error:&fileCoordinatorError byAccessor:^(NSURL *newURL) {
+        [fc coordinateWritingItemAtURL:_filePackageURL options:0 error:&fileCoordinatorError byAccessor:^(NSURL *newURL) {
             NSFileManager* fm = [NSFileManager defaultManager];
             NSError* fmError = nil;
             
@@ -307,7 +307,7 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
             [parentContext performBlock:^{
                 if ([parentContext hasChanges]) {
                     NSFileCoordinator* fc = [[NSFileCoordinator alloc] initWithFilePresenter:nil];
-                    [fc coordinateWritingItemAtURL:_filePackageURL options:NSFileCoordinatorWritingForMerging error:nil byAccessor:^(NSURL *newURL) {
+                    [fc coordinateWritingItemAtURL:_filePackageURL options:0 error:nil byAccessor:^(NSURL *newURL) {
                         NSError* parentSaveError = nil;
                         success = [parentContext save:&parentSaveError];
                         if (parentSaveError) {

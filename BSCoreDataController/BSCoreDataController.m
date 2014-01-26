@@ -418,6 +418,7 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
     }];
 
     [managedObjectContext setParentContext:parentContext];
+
     _managedObjectContext = managedObjectContext;
 }
 
@@ -430,11 +431,16 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
 {
     NSManagedObjectContext* objectContext = [self managedObjectContext];
     NSPersistentStoreCoordinator *storeCoordinator = [objectContext persistentStoreCoordinator];
-    NSPersistentStore* persistentStore = [storeCoordinator addPersistentStoreWithType:[self persistentStoreTypeForFileType:fileType]
-                                                      configuration:configuration
-                                                                URL:storeURL
-                                                            options:storeOptions
-                                                              error:error];
+    NSPersistentStore* __block persistentStore = nil;
+    NSString* persistentStoreType = [self persistentStoreTypeForFileType:fileType];
+    // deadlock fix.
+    [objectContext performBlockAndWait:^{
+        persistentStore = [storeCoordinator addPersistentStoreWithType:persistentStoreType
+                                       configuration:configuration
+                                                 URL:storeURL
+                                             options:storeOptions
+                                               error:error];
+    }];
     if (persistentStore) {
         _persistentStore = persistentStore;
     }

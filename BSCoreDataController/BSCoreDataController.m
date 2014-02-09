@@ -289,34 +289,40 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
     };
 
     NSManagedObjectContext* context = self.managedObjectContext;
-    [context performBlock:^{
-        NSError* mainContextSaveError = nil;
-        if([context hasChanges]) {
-            [context save:&mainContextSaveError];
+    if(context.persistentStoreCoordinator) {
+        [context performBlock:^{
+            NSError* mainContextSaveError = nil;
+            if([context hasChanges]) {
+                [context save:&mainContextSaveError];
+            }
+            if (!mainContextSaveError) {
+                NSManagedObjectContext* parentContext = [context parentContext];
+                [parentContext performBlock:^{
+                    if ([parentContext hasChanges]) {
+                        NSFileCoordinator* fc = [[NSFileCoordinator alloc] initWithFilePresenter:nil];
+                        [fc coordinateWritingItemAtURL:_filePackageURL options:0 error:nil byAccessor:^(NSURL *newURL) {
+                            NSError* parentSaveError = nil;
+                            success = [parentContext save:&parentSaveError];
+                            if (parentSaveError) {
+                                [self handleError:parentSaveError userInteractionPermitted:NO];
+                            }
+                        }];
+                    }
+                    returnSuccess();
+                }];
+                // call completion handler in the above performBlock.
+                return;
+            } else {
+                [self handleError:mainContextSaveError userInteractionPermitted:YES];
+                success = NO;
+            }
+            returnSuccess();
+        }];
+    } else {
+        if(completionHandler) {
+            completionHandler(NO);
         }
-        if (!mainContextSaveError) {
-            NSManagedObjectContext* parentContext = [context parentContext];
-            [parentContext performBlock:^{
-                if ([parentContext hasChanges]) {
-                    NSFileCoordinator* fc = [[NSFileCoordinator alloc] initWithFilePresenter:nil];
-                    [fc coordinateWritingItemAtURL:_filePackageURL options:0 error:nil byAccessor:^(NSURL *newURL) {
-                        NSError* parentSaveError = nil;
-                        success = [parentContext save:&parentSaveError];
-                        if (parentSaveError) {
-                            [self handleError:parentSaveError userInteractionPermitted:NO];
-                        }
-                    }];
-                }
-                returnSuccess();
-            }];
-            // call completion handler in the above performBlock.
-            return;
-        } else {
-            [self handleError:mainContextSaveError userInteractionPermitted:YES];
-            success = NO;
-        }
-        returnSuccess();
-    }];
+    }
 }
 
 

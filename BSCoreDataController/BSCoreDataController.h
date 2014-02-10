@@ -79,3 +79,10 @@
 extern NSString* const BSCoreDataControllerStoresWillChangeNotification;
 extern NSString* const BSCoreDataControllerStoresDidChangeNotification;
 extern NSString* const BSCoreDataControllerDidMergeFromUbiquitousContentChanges;
+
+extern NSString* const BSCoreDataControllerErrorDomain;
+
+enum {
+    BSCoreDataControllerErrorNone,
+    BSCoreDataControllerErrorPersistentStoreCoordinatorNotConfigured
+};

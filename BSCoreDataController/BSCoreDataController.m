@@ -21,6 +21,8 @@
 #import <CoreData/CoreData.h>
 #import "BSCoreDataController.h"
 
+NSString* const BSCoreDataControllerErrorDomain = @"BSCoreDataControllerErrorDomain";
+
 NSString* const BSCoreDataControllerDidMergeFromUbiquitousContentChanges = @"BSCoreDataControllerDidMergeFromUbiquitousContentChanges";
 NSString* const BSCoreDataControllerStoresWillChangeNotification = @"BSCoreDataControllerStoresWillChangeNotification";
 NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataControllerStoresDidChangeNotification";
@@ -319,6 +321,9 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
             returnSuccess();
         }];
     } else {
+        NSDictionary* errorInfo = @{NSLocalizedDescriptionKey: NSLocalizedString(@"Persistent store coordinator not configured", @"Core Data Controller Error")};
+        NSError* error = [NSError errorWithDomain:BSCoreDataControllerErrorDomain code:BSCoreDataControllerErrorPersistentStoreCoordinatorNotConfigured userInfo:errorInfo];
+        [self handleError:error userInteractionPermitted:NO];
         success = NO;
         returnSuccess();
     }

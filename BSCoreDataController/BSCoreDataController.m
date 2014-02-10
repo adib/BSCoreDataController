@@ -319,9 +319,8 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
             returnSuccess();
         }];
     } else {
-        if(completionHandler) {
-            completionHandler(NO);
-        }
+        success = NO;
+        returnSuccess();
     }
 }
 

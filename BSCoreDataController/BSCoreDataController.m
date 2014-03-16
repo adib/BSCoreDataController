@@ -407,6 +407,8 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
 
 -(void)setManagedObjectContext:(NSManagedObjectContext *)managedObjectContext
 {
+    _managedObjectContext = managedObjectContext;
+
     BOOL isUbiquitous = [[self class] usesUbiquitousStorage];
     NSNotificationCenter* nc = [NSNotificationCenter defaultCenter];
     if (isUbiquitous) {
@@ -428,8 +430,6 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
     }];
 
     [managedObjectContext setParentContext:parentContext];
-
-    _managedObjectContext = managedObjectContext;
 }
 
 

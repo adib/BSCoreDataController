@@ -215,8 +215,7 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
     // ensure context is created
     NSString* fileType = self.fileType;
     dispatch_async([self backgroundQueue], ^{
-        BOOL __block success = YES;
-        void(^returnSuccess)() = ^{
+        void(^returnSuccess)(BOOL) = ^(BOOL success){
             if (completionHandler) {
                 dispatch_async(dispatch_get_main_queue(), ^{
                     completionHandler(success);
@@ -226,7 +225,7 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
         
         if (_persistentStore) {
             // already open
-            returnSuccess();
+            returnSuccess(YES);
             return;
         }
         
@@ -244,7 +243,7 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
                     if (configureError) {
                         [self handleError:configureError userInteractionPermitted:YES];
                     }
-                    success = NO;
+                    returnSuccess(NO);
                     return;
                 } else {
                     [newURL setResourceValue:@YES forKey:NSURLIsPackageKey error:nil];
@@ -252,11 +251,10 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
                         [newURL setResourceValue:fileType forKey:NSURLTypeIdentifierKey error:nil];
                     }
                 }
-
             } else {
                 if (fmError) {
                     [self handleError:fmError userInteractionPermitted:YES];
-                    success = NO;
+                    returnSuccess(NO);
                     return;
                 }
             }
@@ -264,10 +262,10 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
         if (fileCoordinatorError) {
             NSLog(@"error coordinating write: %@",fileCoordinatorError);
             [self handleError:fileCoordinatorError userInteractionPermitted:NO];
-            success = NO;
+            returnSuccess(NO);
+            return;
         }
-        
-        returnSuccess();
+        returnSuccess(YES);
     });
 }
 

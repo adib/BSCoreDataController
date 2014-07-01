@@ -303,7 +303,16 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
     };
 
     NSManagedObjectContext* context = self.managedObjectContext;
-    if(context.persistentStoreCoordinator) {
+    NSPersistentStoreCoordinator* persistentStoreCoordinator = context.persistentStoreCoordinator;
+    if(persistentStoreCoordinator) {
+        if ([persistentStoreCoordinator.persistentStores count] == 0) {
+            NSDictionary* errorInfo = @{NSLocalizedDescriptionKey: NSLocalizedString(@"The persistent store coordinator has no persistent stores.", @"Core Data Controller Error")};
+            NSError* error = [NSError errorWithDomain:BSCoreDataControllerErrorDomain code:BSCoreDataControllerErrorNoPersistentStores userInfo:errorInfo];
+            [self handleError:error userInteractionPermitted:NO];
+            success = NO;
+            returnSuccess();
+            return;
+        }
         [context performBlock:^{
             NSError* mainContextSaveError = nil;
             if([context hasChanges]) {

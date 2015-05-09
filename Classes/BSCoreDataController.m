@@ -38,6 +38,8 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
 -(void) coreDataController_commonInit
 {
     NSNotificationCenter* nc = [NSNotificationCenter defaultCenter];
+    [nc addObserver:self selector:@selector(managedObjectContextDidSave:) name:NSManagedObjectContextDidSaveNotification object:nil];
+    
 #if TARGET_OS_IPHONE
     UIApplication* app = [UIApplication sharedApplication];
     [nc addObserver:self selector:@selector(applicationDidDeactivate:) name:UIApplicationDidEnterBackgroundNotification object:app];
@@ -193,6 +195,18 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
 #endif
 }
 
+
+-(void) managedObjectContextDidSave:(NSNotification*) notification
+{
+    NSManagedObjectContext* otherContext = notification.object;
+    NSManagedObjectContext* myContext = self.managedObjectContext;
+    if (otherContext == myContext || otherContext.persistentStoreCoordinator != myContext.persistentStoreCoordinator) {
+        return;
+    }
+    [myContext performBlock:^{
+        [myContext mergeChangesFromContextDidSaveNotification:notification];
+    }];
+}
 
 #pragma mark NSDocument/UIManagedDocument inspired methods
 

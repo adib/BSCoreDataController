@@ -6,17 +6,17 @@
 #
 Pod::Spec.new do |s|
   s.name             = "BSCoreDataController"
-  s.version          = "0.1.0"
-  s.summary          = "A short description of BSCoreDataController."
+  s.version          = "0.0.1"
+  s.summary          = "Manages Core Data stack for a library-style application."
   s.description      = <<-DESC
                        An optional longer description of BSCoreDataController
 
                        * Markdown format.
                        * Don't worry about the indent, we strip it!
                        DESC
-  s.homepage         = "http://EXAMPLE/NAME"
+  s.homepage         = "http://cutecoder.org/tag/bscoredatacontroller/"
   s.screenshots      = "www.example.com/screenshots_1", "www.example.com/screenshots_2"
-  s.license          = 'MIT'
+  s.license          = 'BSD'
   s.author           = { "Sasmito Adibowo" => "adib@basil-salad.com" }
   s.source           = { :git => "http://EXAMPLE/NAME.git", :tag => s.version.to_s }
   s.social_media_url = 'https://twitter.com/EXAMPLE'

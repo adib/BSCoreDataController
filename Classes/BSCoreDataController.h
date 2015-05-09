@@ -84,5 +84,6 @@ extern NSString* const BSCoreDataControllerErrorDomain;
 
 enum {
     BSCoreDataControllerErrorNone,
-    BSCoreDataControllerErrorPersistentStoreCoordinatorNotConfigured
+    BSCoreDataControllerErrorPersistentStoreCoordinatorNotConfigured,
+    BSCoreDataControllerErrorNoPersistentStores
 };

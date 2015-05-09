@@ -40,16 +40,6 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
     NSNotificationCenter* nc = [NSNotificationCenter defaultCenter];
     [nc addObserver:self selector:@selector(managedObjectContextDidSave:) name:NSManagedObjectContextDidSaveNotification object:nil];
     
-#if TARGET_OS_IPHONE
-    UIApplication* app = [UIApplication sharedApplication];
-    [nc addObserver:self selector:@selector(applicationDidDeactivate:) name:UIApplicationDidEnterBackgroundNotification object:app];
-    [nc addObserver:self selector:@selector(applicationDidDeactivate:) name:UIApplicationWillResignActiveNotification object:app];
-    
-#else
-    NSApplication* app = [NSApplication sharedApplication];
-    [nc addObserver:self selector:@selector(applicationDidDeactivate:) name:NSApplicationDidResignActiveNotification object:app];
-    [nc addObserver:self selector:@selector(applicationDidDeactivate:) name:NSApplicationDidHideNotification object:app];
-#endif // TARGET_OS_IPHONE
 }
 
 +(NSString*) filePackageName { return @"Default.data"; }
@@ -173,11 +163,14 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
     }];
 }
 
-
+/*
 -(void) applicationDidDeactivate:(NSNotification*) notification
 {
 #if TARGET_OS_IPHONE
-    UIApplication* app = [UIApplication sharedApplication];
+    id app = notification.object;
+    if ([app respondsToSelector:@selector(beginBackgroundTaskWithExpirationHandler:)]) {
+        
+    }
     UIBackgroundTaskIdentifier autosaveTaskID = [app beginBackgroundTaskWithExpirationHandler:nil];
     if (autosaveTaskID != UIBackgroundTaskInvalid) {
         [self autosaveWithCompletionHandler:^(BOOL success) {
@@ -194,7 +187,7 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
     }];
 #endif
 }
-
+*/
 
 -(void) managedObjectContextDidSave:(NSNotification*) notification
 {

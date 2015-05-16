@@ -404,7 +404,9 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
 - (NSManagedObjectModel *)managedObjectModel;
 {
     if (!_managedObjectModel) {
-        _managedObjectModel = [NSManagedObjectModel mergedModelFromBundles:[NSArray arrayWithObject:[NSBundle mainBundle]]];
+        NSBundle* bundle = [NSBundle bundleForClass:[self class]];
+        NSBundle* mainBundle = [NSBundle mainBundle];
+        _managedObjectModel = [NSManagedObjectModel mergedModelFromBundles:@[bundle,mainBundle]];
     }
     return _managedObjectModel;
 }

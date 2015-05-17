@@ -221,6 +221,7 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
     NSDictionary* storeOptions = self.persistentStoreOptions;
     // ensure context is created
     NSString* fileType = self.fileType;
+    [self managedObjectContext];
     dispatch_async([self backgroundQueue], ^{
         void(^returnSuccess)(BOOL) = ^(BOOL success){
             if (completionHandler) {
@@ -265,6 +266,7 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
                     return;
                 }
             }
+            returnSuccess(YES);
         }];
         if (fileCoordinatorError) {
             NSLog(@"error coordinating write: %@",fileCoordinatorError);
@@ -272,7 +274,7 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
             returnSuccess(NO);
             return;
         }
-        returnSuccess(YES);
+        //returnSuccess(YES);
     });
 }
 

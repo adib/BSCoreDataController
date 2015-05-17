@@ -40,6 +40,17 @@
     XCTestExpectation* openComplete = [self expectationWithDescription:@"Open Completed"];
     [_coreDataController openWithCompletionHandler:^(BOOL success) {
         XCTAssertTrue(success);
+        
+        NSManagedObjectContext* objectContext = [_coreDataController managedObjectContext];
+        XCTAssertNotNil(objectContext);
+        
+        NSPersistentStoreCoordinator* psc = [objectContext persistentStoreCoordinator];
+        XCTAssertNotNil(psc);
+        
+        NSArray* persistentStores = [psc persistentStores];
+        XCTAssertNotNil(persistentStores);
+        XCTAssertGreaterThan([persistentStores count],0);
+
         [openComplete fulfill];
     }];
 

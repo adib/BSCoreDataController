@@ -279,7 +279,8 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
 
 - (void)autosaveWithCompletionHandler:(void (^)(BOOL success))completionHandler
 {
-    dispatch_queue_t callbackQueue = [NSThread isMainThread] ? dispatch_get_main_queue() : [self backgroundQueue];
+    const dispatch_queue_t backgroundQueue = [self backgroundQueue];
+    dispatch_queue_t callbackQueue = [NSThread isMainThread] ? dispatch_get_main_queue() : backgroundQueue;
     NSProcessInfo* processInfo = [NSProcessInfo processInfo];
     id<NSObject> activityToken = [processInfo beginActivityWithOptions:NSActivityBackground reason:@"Autosave"];
     
@@ -296,51 +297,53 @@ NSString* const BSCoreDataControllerStoresDidChangeNotification = @"BSCoreDataCo
     };
 
     NSManagedObjectContext* context = self.managedObjectContext;
-    NSPersistentStoreCoordinator* persistentStoreCoordinator = context.persistentStoreCoordinator;
-    if(persistentStoreCoordinator) {
-        if ([persistentStoreCoordinator.persistentStores count] == 0) {
-            NSDictionary* errorInfo = @{NSLocalizedDescriptionKey: NSLocalizedString(@"The persistent store coordinator has no persistent stores.", @"Core Data Controller Error")};
-            NSError* error = [NSError errorWithDomain:BSCoreDataControllerErrorDomain code:BSCoreDataControllerErrorNoPersistentStores userInfo:errorInfo];
+    dispatch_async(backgroundQueue, ^{
+        NSPersistentStoreCoordinator* persistentStoreCoordinator = context.persistentStoreCoordinator;
+        if(persistentStoreCoordinator) {
+            if ([persistentStoreCoordinator.persistentStores count] == 0) {
+                NSDictionary* errorInfo = @{NSLocalizedDescriptionKey: NSLocalizedString(@"The persistent store coordinator has no persistent stores.", @"Core Data Controller Error")};
+                NSError* error = [NSError errorWithDomain:BSCoreDataControllerErrorDomain code:BSCoreDataControllerErrorNoPersistentStores userInfo:errorInfo];
+                [self handleError:error userInteractionPermitted:NO];
+                success = NO;
+                returnSuccess();
+                return;
+            }
+            [context performBlock:^{
+                NSError* mainContextSaveError = nil;
+                if([context hasChanges]) {
+                    [context save:&mainContextSaveError];
+                }
+                if (!mainContextSaveError) {
+                    NSManagedObjectContext* parentContext = [context parentContext];
+                    [parentContext performBlock:^{
+                        if ([parentContext hasChanges]) {
+                            NSFileCoordinator* fc = [[NSFileCoordinator alloc] initWithFilePresenter:nil];
+                            [fc coordinateWritingItemAtURL:_filePackageURL options:0 error:nil byAccessor:^(NSURL *newURL) {
+                                NSError* parentSaveError = nil;
+                                success = [parentContext save:&parentSaveError];
+                                if (parentSaveError) {
+                                    [self handleError:parentSaveError userInteractionPermitted:NO];
+                                }
+                            }];
+                        }
+                        returnSuccess();
+                    }];
+                    // call completion handler in the above performBlock.
+                    return;
+                } else {
+                    [self handleError:mainContextSaveError userInteractionPermitted:YES];
+                    success = NO;
+                }
+                returnSuccess();
+            }];
+        } else {
+            NSDictionary* errorInfo = @{NSLocalizedDescriptionKey: NSLocalizedString(@"Persistent store coordinator not configured", @"Core Data Controller Error")};
+            NSError* error = [NSError errorWithDomain:BSCoreDataControllerErrorDomain code:BSCoreDataControllerErrorPersistentStoreCoordinatorNotConfigured userInfo:errorInfo];
             [self handleError:error userInteractionPermitted:NO];
             success = NO;
             returnSuccess();
-            return;
         }
-        [context performBlock:^{
-            NSError* mainContextSaveError = nil;
-            if([context hasChanges]) {
-                [context save:&mainContextSaveError];
-            }
-            if (!mainContextSaveError) {
-                NSManagedObjectContext* parentContext = [context parentContext];
-                [parentContext performBlock:^{
-                    if ([parentContext hasChanges]) {
-                        NSFileCoordinator* fc = [[NSFileCoordinator alloc] initWithFilePresenter:nil];
-                        [fc coordinateWritingItemAtURL:_filePackageURL options:0 error:nil byAccessor:^(NSURL *newURL) {
-                            NSError* parentSaveError = nil;
-                            success = [parentContext save:&parentSaveError];
-                            if (parentSaveError) {
-                                [self handleError:parentSaveError userInteractionPermitted:NO];
-                            }
-                        }];
-                    }
-                    returnSuccess();
-                }];
-                // call completion handler in the above performBlock.
-                return;
-            } else {
-                [self handleError:mainContextSaveError userInteractionPermitted:YES];
-                success = NO;
-            }
-            returnSuccess();
-        }];
-    } else {
-        NSDictionary* errorInfo = @{NSLocalizedDescriptionKey: NSLocalizedString(@"Persistent store coordinator not configured", @"Core Data Controller Error")};
-        NSError* error = [NSError errorWithDomain:BSCoreDataControllerErrorDomain code:BSCoreDataControllerErrorPersistentStoreCoordinatorNotConfigured userInfo:errorInfo];
-        [self handleError:error userInteractionPermitted:NO];
-        success = NO;
-        returnSuccess();
-    }
+    });
 }
 
 
